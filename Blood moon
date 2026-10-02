@@ -1,0 +1,247 @@
+
+-- Blood Moon Visual V2
+-- LocalScript dành cho Roblox Studio
+-- Thay thế giao diện phiên bản cũ
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Xóa giao diện phiên bản cũ
+local oldGui = playerGui:FindFirstChild("BloodMoonUI")
+if oldGui then
+    oldGui:Destroy()
+end
+
+local RED = Color3.fromRGB(190, 0, 25)
+local DARK = Color3.fromRGB(28, 5, 10)
+
+local enabled = true
+local tracked = setmetatable({}, {__mode = "k"})
+
+-- Tạo giao diện
+local gui = Instance.new("ScreenGui")
+gui.Name = "BloodMoonUI"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+-- Hàm kéo thả độc lập
+local function makeDraggable(object, handle)
+    local dragging = false
+    local dragStart
+    local startPos
+    local activeInput
+
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = object.Position
+            activeInput = input
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(input)
+        if not dragging then return end
+
+        if input == activeInput
+        or input.UserInputType == Enum.UserInputType.MouseMovement
+        or input.UserInputType == Enum.UserInputType.Touch then
+
+            local delta = input.Position - dragStart
+
+            object.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+
+    UIS.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+            activeInput = nil
+        end
+    end)
+end
+
+-- Logo hình tròn
+local logo = Instance.new("TextButton")
+logo.Name = "BloodMoonLogo"
+logo.Size = UDim2.fromOffset(85, 85)
+logo.Position = UDim2.fromOffset(30, 180)
+logo.BackgroundColor3 = DARK
+logo.Text = "☾"
+logo.TextColor3 = Color3.fromRGB(255, 80, 95)
+logo.TextSize = 48
+logo.Font = Enum.Font.GothamBold
+logo.Parent = gui
+
+local logoCorner = Instance.new("UICorner")
+logoCorner.CornerRadius = UDim.new(1, 0)
+logoCorner.Parent = logo
+
+local logoShadow = Instance.new("UIStroke")
+logoShadow.Color = RED
+logoShadow.Thickness = 3
+logoShadow.Parent = logo
+
+makeDraggable(logo, logo)
+
+-- Bảng màu
+local panel = Instance.new("Frame")
+panel.Name = "ColorPanel"
+panel.Size = UDim2.fromOffset(270, 205)
+panel.Position = UDim2.fromOffset(140, 180)
+panel.BackgroundColor3 = Color3.fromRGB(20, 5, 10)
+panel.BorderSizePixel = 0
+panel.Visible = false
+panel.Active = true
+panel.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 14)
+corner.Parent = panel
+
+local shadow = Instance.new("UIStroke")
+shadow.Color = RED
+shadow.Thickness = 2
+shadow.Parent = panel
+
+-- Vùng kéo thả trống phía trên bảng
+local dragArea = Instance.new("Frame")
+dragArea.Name = "DragArea"
+dragArea.Size = UDim2.new(1, 0, 0, 48)
+dragArea.BackgroundTransparency = 1
+dragArea.Active = true
+dragArea.Parent = panel
+
+makeDraggable(panel, dragArea)
+
+-- Tiêu đề không phải vùng kéo
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 1, 0)
+title.BackgroundTransparency = 1
+title.Text = "BLOOD MOON"
+title.TextColor3 = Color3.fromRGB(255, 65, 85)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 20
+title.Parent = dragArea
+
+-- Trạng thái
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(1, -20, 0, 35)
+status.Position = UDim2.fromOffset(10, 58)
+status.BackgroundTransparency = 1
+status.TextColor3 = Color3.new(1, 1, 1)
+status.Font = Enum.Font.Gotham
+status.TextSize = 14
+status.Parent = panel
+
+-- Nút bật tắt màu
+local toggle = Instance.new("TextButton")
+toggle.Size = UDim2.new(1, -30, 0, 42)
+toggle.Position = UDim2.fromOffset(15, 110)
+toggle.BackgroundColor3 = RED
+toggle.TextColor3 = Color3.new(1, 1, 1)
+toggle.Text = "TẮT HIỆU ỨNG"
+toggle.Font = Enum.Font.GothamBold
+toggle.TextSize = 14
+toggle.Parent = panel
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 10)
+toggleCorner.Parent = toggle
+
+-- Đổi màu các hiệu ứng hỗ trợ
+local function applyEffect(object)
+    local property
+
+    if object:IsA("ParticleEmitter")
+    or object:IsA("Trail")
+    or object:IsA("Beam") then
+        property = "Color"
+    elseif object:IsA("Fire")
+    or object:IsA("Smoke")
+    or object:IsA("Sparkles") then
+        property = "Color"
+    elseif object:IsA("PointLight")
+    or object:IsA("SpotLight")
+    or object:IsA("SurfaceLight") then
+        property = "Color"
+    end
+
+    if not property then return end
+
+    if not tracked[object] then
+        local ok, original = pcall(function()
+            return object[property]
+        end)
+
+        if not ok then return end
+
+        tracked[object] = {
+            property = property,
+            original = original
+        }
+    end
+
+    pcall(function()
+        local data = tracked[object]
+
+        if enabled then
+            object[property] = ColorSequence.new(RED)
+        else
+            object[property] = data.original
+        end
+    end)
+end
+
+local function updateEffects()
+    for object in pairs(tracked) do
+        if object.Parent then
+            applyEffect(object)
+        end
+    end
+end
+
+local function updateUI()
+    status.Text = enabled and "Trạng thái: Đang bật"
+        or "Trạng thái: Đang tắt"
+
+    toggle.Text = enabled and "TẮT HIỆU ỨNG"
+        or "BẬT HIỆU ỨNG"
+
+    updateEffects()
+end
+
+-- Theo dõi hiệu ứng mới
+for _, object in ipairs(Workspace:GetDescendants()) do
+    applyEffect(object)
+end
+
+Workspace.DescendantAdded:Connect(function(object)
+    if enabled then
+        applyEffect(object)
+    end
+end)
+
+-- Nút bật tắt hiệu ứng
+toggle.Activated:Connect(function()
+    enabled = not enabled
+    updateUI()
+end)
+
+-- Logo bật và ẩn bảng theo từng lần nhấn
+logo.Activated:Connect(function()
+    panel.Visible = not panel.Visible
+end)
+
+updateUI()
